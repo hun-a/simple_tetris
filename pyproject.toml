@@ -1,0 +1,23 @@
+[project]
+name = "tetris-game"
+version = "0.1.0"
+description = "A classic Tetris game implementation in Python using Pygame"
+authors = [
+    {name = "Tetris Game", email = "tetris@example.com"}
+]
+dependencies = [
+    "pygame>=2.5.2",
+]
+requires-python = ">=3.12"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.scripts]
+tetris = "tetris:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = []
