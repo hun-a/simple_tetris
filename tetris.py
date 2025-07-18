@@ -171,6 +171,7 @@ class TetrisGame:
     def __init__(self):
         self.grid = [[BLACK for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
         self.current_piece = self.get_random_tetromino()
+        self.next_piece = self.get_random_tetromino()
         self.score = 0
         self.level = 1
         self.lines_cleared = 0
@@ -181,6 +182,11 @@ class TetrisGame:
         self.move_speed = 150
         self.down_time = 0
         self.down_speed = 100
+        self.last_move_left = False
+        self.last_move_right = False
+        self.last_move_down = False
+        self.lock_delay = 0
+        self.lock_delay_time = 500
         
     def get_random_tetromino(self):
         shape = random.choice(list(TETROMINO_SHAPES.keys()))
@@ -234,42 +240,68 @@ class TetrisGame:
         
         self.move_time += dt
         self.down_time += dt
+        self.lock_delay += dt
         
-        if keys_pressed[pygame.K_LEFT] and self.move_time >= self.move_speed:
-            self.move_piece(-1)
+        left_pressed = keys_pressed[pygame.K_LEFT] or keys_pressed[pygame.K_a]
+        right_pressed = keys_pressed[pygame.K_RIGHT] or keys_pressed[pygame.K_d]
+        down_pressed = keys_pressed[pygame.K_DOWN] or keys_pressed[pygame.K_s]
+        
+        if left_pressed and (not self.last_move_left or self.move_time >= self.move_speed):
+            if self.move_piece(-1):
+                self.lock_delay = 0
             self.move_time = 0
-        elif keys_pressed[pygame.K_RIGHT] and self.move_time >= self.move_speed:
-            self.move_piece(1)
+        elif right_pressed and (not self.last_move_right or self.move_time >= self.move_speed):
+            if self.move_piece(1):
+                self.lock_delay = 0
             self.move_time = 0
-        elif keys_pressed[pygame.K_DOWN] and self.down_time >= self.down_speed:
+        
+        if down_pressed and (not self.last_move_down or self.down_time >= self.down_speed):
             if self.is_valid_position(self.current_piece, dy=1):
                 self.current_piece.y += 1
                 self.score += 1
             self.down_time = 0
         
-        if not (keys_pressed[pygame.K_LEFT] or keys_pressed[pygame.K_RIGHT]):
-            self.move_time = self.move_speed
+        self.last_move_left = left_pressed
+        self.last_move_right = right_pressed
+        self.last_move_down = down_pressed
         
-        if not keys_pressed[pygame.K_DOWN]:
-            self.down_time = self.down_speed
+        if not (left_pressed or right_pressed):
+            self.move_time = 0
+        
+        if not down_pressed:
+            self.down_time = 0
         
         self.fall_time += dt
         if self.fall_time >= self.fall_speed:
             if self.is_valid_position(self.current_piece, dy=1):
                 self.current_piece.y += 1
+                self.lock_delay = 0
             else:
-                self.place_piece(self.current_piece)
-                self.clear_lines()
-                self.current_piece = self.get_random_tetromino()
-                
-                if not self.is_valid_position(self.current_piece):
-                    self.game_over = True
+                if self.lock_delay >= self.lock_delay_time:
+                    self.place_piece(self.current_piece)
+                    self.clear_lines()
+                    self.current_piece = self.next_piece
+                    self.next_piece = self.get_random_tetromino()
+                    self.lock_delay = 0
+                    
+                    # Check if new piece can be placed, try a few positions up if needed
+                    placed = False
+                    for y_offset in range(0, 4):
+                        self.current_piece.y = -y_offset
+                        if self.is_valid_position(self.current_piece):
+                            placed = True
+                            break
+                    
+                    if not placed:
+                        self.game_over = True
             
             self.fall_time = 0
     
     def move_piece(self, dx):
         if self.is_valid_position(self.current_piece, dx=dx):
             self.current_piece.x += dx
+            return True
+        return False
     
     def rotate_piece(self):
         new_rotation = (self.current_piece.rotation + 1) % len(self.current_piece.shapes)
@@ -284,6 +316,7 @@ class TetrisGame:
     def restart(self):
         self.grid = [[BLACK for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
         self.current_piece = self.get_random_tetromino()
+        self.next_piece = self.get_random_tetromino()
         self.score = 0
         self.level = 1
         self.lines_cleared = 0
@@ -292,6 +325,16 @@ class TetrisGame:
         self.game_over = False
         self.move_time = 0
         self.down_time = 0
+        self.last_move_left = False
+        self.last_move_right = False
+        self.last_move_down = False
+        self.lock_delay = 0
+        
+        # Ensure the starting piece can be placed
+        for y_offset in range(0, 4):
+            self.current_piece.y = -y_offset
+            if self.is_valid_position(self.current_piece):
+                break
 
 def draw_grid(screen, game):
     for y in range(GRID_HEIGHT):
@@ -322,6 +365,20 @@ def draw_text(screen, text, x, y, size=24, color=WHITE):
     text_surface = font.render(text, True, color)
     screen.blit(text_surface, (x, y))
 
+def draw_next_piece(screen, piece, x, y):
+    shape = piece.get_rotated_shape()
+    for i, row in enumerate(shape):
+        for j, cell in enumerate(row):
+            if cell == '#':
+                rect = pygame.Rect(
+                    x + j * 20,
+                    y + i * 20,
+                    20,
+                    20
+                )
+                pygame.draw.rect(screen, piece.color, rect)
+                pygame.draw.rect(screen, WHITE, rect, 1)
+
 def main():
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     pygame.display.set_caption("Tetris")
@@ -338,7 +395,7 @@ def main():
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
+                if event.key == pygame.K_UP or event.key == pygame.K_w:
                     game.rotate_piece()
                 elif event.key == pygame.K_SPACE:
                     game.drop_piece()
@@ -358,15 +415,18 @@ def main():
         draw_text(screen, f"Level: {game.level}", info_x, 80)
         draw_text(screen, f"Lines: {game.lines_cleared}", info_x, 110)
         
-        if game.game_over:
-            draw_text(screen, "GAME OVER", info_x, 200, color=RED)
-            draw_text(screen, "Press R to restart", info_x, 230, size=18)
+        draw_text(screen, "Next:", info_x, 150, size=18)
+        draw_next_piece(screen, game.next_piece, info_x, 170)
         
-        draw_text(screen, "Controls:", info_x, 300, size=20)
-        draw_text(screen, "← → Move", info_x, 330, size=16)
-        draw_text(screen, "↑ Rotate", info_x, 350, size=16)
-        draw_text(screen, "↓ Soft drop", info_x, 370, size=16)
-        draw_text(screen, "Space Hard drop", info_x, 390, size=16)
+        if game.game_over:
+            draw_text(screen, "GAME OVER", info_x, 280, color=RED)
+            draw_text(screen, "Press R to restart", info_x, 310, size=18)
+        
+        draw_text(screen, "Controls:", info_x, 360, size=20)
+        draw_text(screen, "A/D or Left/Right: Move", info_x, 390, size=16)
+        draw_text(screen, "W or Up: Rotate", info_x, 410, size=16)
+        draw_text(screen, "S or Down: Soft drop", info_x, 430, size=16)
+        draw_text(screen, "Space: Hard drop", info_x, 450, size=16)
         
         pygame.display.flip()
 

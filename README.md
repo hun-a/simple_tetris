@@ -9,16 +9,24 @@ A classic Tetris game implementation in Python using Pygame.
 - **Progressive difficulty** - game speed increases with each level
 - **Scoring system** - earn points for clearing lines and dropping pieces
 - **Line clearing mechanics** - complete horizontal lines disappear
-- **Game over detection** with restart functionality
+- **Next piece preview** - see what tetromino is coming next
+- **Lock delay system** - brief grace period to adjust pieces after they land
+- **Dual control schemes** - use arrow keys OR WASD keys
+- **Improved game over detection** - only triggers when blocks truly reach the top
 - **Visual feedback** with colored pieces and grid display
 
 ## Controls
 
+### Movement Controls (Choose your preference)
+| Arrow Keys | WASD Keys | Action |
+|------------|-----------|--------|
+| ← → | A/D | Move piece left/right (continuous when held) |
+| ↓ | S | Soft drop (continuous when held) |
+| ↑ | W | Rotate piece clockwise |
+
+### Special Controls
 | Key | Action |
 |-----|--------|
-| ← → | Move piece left/right (continuous when held) |
-| ↓ | Soft drop (continuous when held) |
-| ↑ | Rotate piece clockwise |
 | Space | Hard drop (instant drop) |
 | R | Restart game (when game over) |
 
@@ -57,8 +65,10 @@ A classic Tetris game implementation in Python using Pygame.
 
 2. **Gameplay:**
    - Pieces fall from the top of the screen
-   - Use arrow keys to move and rotate pieces
+   - Use arrow keys OR WASD keys to move and rotate pieces
+   - See the next piece in the preview area on the right
    - Complete horizontal lines to clear them and score points
+   - Use the lock delay to adjust pieces after they land
    - Game speed increases as you progress through levels
    - Game ends when pieces reach the top
 
@@ -69,6 +79,9 @@ A classic Tetris game implementation in Python using Pygame.
 - **Speed increase:** Fall speed increases with each level
 - **Soft drop bonus:** +1 point for each cell dropped manually
 - **Hard drop bonus:** +2 points for hard dropping
+- **Lock delay:** 500ms grace period to move pieces after they land
+- **Next piece system:** Preview the upcoming tetromino to plan ahead
+- **Responsive controls:** First key press moves immediately, held keys repeat
 
 ## Technical Details
 
